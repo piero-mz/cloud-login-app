@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesión{% endblock %}
+{% block content %}
+  <h1>Iniciar sesión</h1>
+  <p class="sub">Ingresa tus credenciales para continuar</p>
+  <form method="post" action="{{ url_for('login') }}">
+    <label for="usuario">Usuario</label>
+    <input id="usuario" name="usuario" value="{{ usuario or '' }}" required autofocus autocomplete="username">
+    <label for="password">Contraseña</label>
+    <input id="password" name="password" type="password" required autocomplete="current-password">
+    <button type="submit">Ingresar</button>
+  </form>
+{% endblock %}
