@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   app:
-    image: ${DOCKERHUB_USER}/cloud-login-app:1.0.0
+    image: ${DOCKERHUB_USER}/cloud-login-app:1.1.0
     build:
       context: .
       dockerfile: app/Dockerfile

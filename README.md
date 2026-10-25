@@ -11,7 +11,7 @@ Usuario ──HTTPS──▶ [Nginx :80] ──HTTP──▶ [App Flask :8000] �
 | Componente | Imagen | Rol |
 |---|---|---|
 | proxy | `nginx:1.27-alpine` (oficial) | Proxy inverso, único punto de entrada (puerto 80) |
-| app | `<usuario>/cloud-login-app:1.0.0` (propia) | Flask + Gunicorn: login, sesión, bienvenida |
+| app | `<usuario>/cloud-login-app:1.1.0` (propia) | Flask + Gunicorn: login, sesión, panel administrativo |
 | db | `postgres:17.2-alpine` (oficial) | Usuarios con contraseña hash bcrypt, volumen persistente |
 
 ## Usuarios de prueba (ficticios)
@@ -21,15 +21,24 @@ Usuario ──HTTPS──▶ [Nginx :80] ──HTTP──▶ [App Flask :8000] �
 | `admin` | `Admin123!` | Administrador del Sistema |
 | `mlopez` | `Maria2026!` | María López |
 
+## Interfaz
+
+El front usa el tema **Nimbo**, una consola de operaciones con estética de mapa meteorológico:
+
+- **`/`**: inicio de sesión con un panel de isobaras y el formulario (con botón para mostrar la contraseña).
+- **`/panel`**: panel administrativo protegido. Muestra la topología proxy → app → BD, un gráfico de peticiones por hora, la lista de usuarios (leída de la BD) y la actividad del día.
+  Los datos de servicios, tráfico y actividad son de demostración; solo la tabla de usuarios es real.
+- **`/bienvenida`**: ruta anterior; redirige a `/panel`.
+
 ## Estructura
 
 ```
 ├── app/
-│   ├── app.py              # Lógica: login, sesión, ruta protegida
+│   ├── app.py              # Lógica: login, sesión, panel protegido
 │   ├── Dockerfile          # Imagen propia (linux/amd64)
 │   ├── requirements.txt
-│   ├── templates/          # login.html, bienvenida.html
-│   └── static/style.css
+│   ├── templates/          # base, login, panel y parciales (_iconos, _mensajes)
+│   └── static/             # style.css, login.js, panel.js, logo.svg
 ├── db/init.sql             # Tabla usuarios + 2 usuarios con hash
 ├── nginx/nginx.conf        # Proxy inverso
 ├── docker-compose.yml
@@ -59,13 +68,13 @@ Crea un access token en Docker Hub (Account Settings → Personal access tokens)
 ```bash
 docker login -u TU_USUARIO          # pega el token como contraseña
 docker compose build                # construye para linux/amd64
-docker push TU_USUARIO/cloud-login-app:1.0.0
+docker push TU_USUARIO/cloud-login-app:1.1.0
 ```
 
 ## 3. Desplegar en la nube — Opción A (Blitz Cloud)
 
 1. Crear la **base de datos administrada PostgreSQL 17** en el panel.
-2. Crear una **app desde imagen Docker Hub**: `TU_USUARIO/cloud-login-app:1.0.0`.
+2. Crear una **app desde imagen Docker Hub**: `TU_USUARIO/cloud-login-app:1.1.0`.
 3. Puerto de la app: **8000**.
 4. Variables de entorno de la app:
    - `DATABASE_URL` → la define la plataforma al vincular la BD.

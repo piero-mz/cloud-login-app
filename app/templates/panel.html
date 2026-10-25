@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "_iconos.html" import icono, marca %}
+{% set partes = nombre.split() %}
+{% block title %}Resumen | Nimbo{% endblock %}
+{% block body_class %}pagina-panel{% endblock %}
+{% block body %}
+<a class="saltar" href="#contenido">Ir al contenido</a>
+<div class="app">
+  <aside class="lateral">
+    <div class="marca">{{ marca(28) }}<span>Nimbo</span></div>
+    <nav aria-label="Secciones del panel">
+      <a href="#contenido" aria-current="page">{{ icono('resumen') }}Resumen</a>
+      <a href="#servicios">{{ icono('servicios') }}Servicios</a>
+      <a href="#trafico">{{ icono('trafico') }}Tráfico</a>
+      <a href="#usuarios">{{ icono('usuarios') }}Usuarios</a>
+      <a href="#actividad">{{ icono('actividad') }}Actividad</a>
+    </nav>
+    <div class="lateral-entorno">
+      <span class="punto punto-ok" aria-hidden="true"></span>
+      <div>
+        <strong>Entorno local</strong>
+        <span>Docker Compose, 3 contenedores</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="principal">
+    <header class="barra">
+      <p class="barra-titulo">Resumen</p>
+      <div class="barra-usuario">
+        <span class="avatar" aria-hidden="true">{{ (partes[0][0] ~ (partes[1][0] if partes|length > 1 else ''))|upper }}</span>
+        <span class="barra-nombre">{{ nombre }}</span>
+        <form method="post" action="{{ url_for('logout') }}">
+          <button type="submit" class="boton boton-sutil">{{ icono('salir', 16) }}Cerrar sesión</button>
+        </form>
+      </div>
+    </header>
+
+    <main id="contenido" tabindex="-1">
+      {% include "_mensajes.html" %}
+
+      <section class="saludo">
+        <h1>Hola, {{ partes[0] }}</h1>
+        <p class="estado-general">{{ icono('ok', 16) }}Los 3 servicios están operativos</p>
+      </section>
+
+      <section id="servicios" class="bloque" aria-labelledby="t-servicios">
+        <div class="bloque-cabecera">
+          <h2 id="t-servicios">Servicios</h2>
+          <p>El tráfico entra por el proxy y viaja por la red interna hasta la base de datos.</p>
+        </div>
+        <ol class="topologia">
+          {% for s in servicios %}
+          <li class="nodo">
+            <div class="nodo-cabecera">
+              <h3>{{ s.nombre }}</h3>
+              <span class="estado estado-ok">{{ icono('ok', 14) }}Operativo</span>
+            </div>
+            <p class="nodo-rol">{{ s.rol }}</p>
+            <dl class="nodo-datos">
+              <div><dt>Imagen</dt><dd>{{ s.imagen }}</dd></div>
+              <div><dt>Puerto</dt><dd>{{ s.puerto }}</dd></div>
+              <div><dt>Activo desde</dt><dd>{{ s.activo }}</dd></div>
+            </dl>
+            {% for etiqueta, valor in [('CPU', s.cpu), ('Memoria', s.memoria)] %}
+            <div class="medidor{% if valor >= 75 %} medidor-alto{% endif %}">
+              <div class="medidor-texto"><span>{{ etiqueta }}</span><span>{{ valor }} %</span></div>
+              <div class="medidor-barra" role="meter" aria-label="{{ etiqueta }} de {{ s.nombre }}" aria-valuenow="{{ valor }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ valor }}%"></span></div>
+            </div>
+            {% endfor %}
+            {% if not loop.last %}<span class="enlace" aria-hidden="true">{{ s.protocolo }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+
+      <section id="trafico" class="bloque" aria-labelledby="t-trafico">
+        <div class="bloque-cabecera">
+          <h2 id="t-trafico">Peticiones por hora</h2>
+          <p>Últimas 24 horas, medidas en el proxy.</p>
+        </div>
+        <div class="trafico">
+          <div id="grafico" class="grafico" tabindex="0" aria-label="Gráfico de peticiones por hora. Usa las flechas para recorrer las horas." data-serie='{{ peticiones|tojson }}'>
+            <div class="tooltip" role="status" hidden></div>
+          </div>
+          <dl class="trafico-resumen">
+            <div><dt>Total del día</dt><dd>{{ "{:,}".format(total_peticiones).replace(",", " ") }}</dd></div>
+            <div><dt>Hora pico</dt><dd>{{ pico.hora }}</dd></div>
+            <div><dt>Tasa de error</dt><dd>0,2 %</dd></div>
+            <div><dt>Latencia media</dt><dd>84 ms</dd></div>
+          </dl>
+        </div>
+        <details class="datos-tabla">
+          <summary>Ver los datos en tabla</summary>
+          <table>
+            <thead><tr><th scope="col">Hora</th><th scope="col">Peticiones</th></tr></thead>
+            <tbody>
+              {% for p in peticiones %}<tr><td>{{ p.hora }}</td><td>{{ p.valor }}</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </details>
+      </section>
+
+      <div class="columnas">
+        <section id="usuarios" class="bloque" aria-labelledby="t-usuarios">
+          <div class="bloque-cabecera">
+            <h2 id="t-usuarios">Usuarios</h2>
+            <p>Cuentas registradas en la base de datos.</p>
+          </div>
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead><tr><th scope="col">Nombre</th><th scope="col">Usuario</th><th scope="col">Creado</th></tr></thead>
+              <tbody>
+                {% for u in usuarios %}
+                <tr>
+                  <td>{{ u.nombre }}</td>
+                  <td>{{ u.usuario }}</td>
+                  <td>{{ u.creado_en.strftime('%d/%m/%Y') }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="actividad" class="bloque" aria-labelledby="t-actividad">
+          <div class="bloque-cabecera">
+            <h2 id="t-actividad">Actividad de hoy</h2>
+          </div>
+          <ol class="linea-tiempo">
+            {% for e in eventos %}
+            <li class="evento evento-{{ e.tipo }}">
+              <time>{{ e.hora }}</time>
+              <div>
+                <p class="evento-titulo">{% if e.tipo == 'aviso' %}<span class="estado estado-aviso">{{ icono('aviso', 14) }}Aviso</span>{% endif %}{{ e.titulo }}</p>
+                <p class="evento-detalle">{{ e.detalle }}</p>
+              </div>
+            </li>
+            {% endfor %}
+          </ol>
+        </section>
+      </div>
+
+      <p class="pie">Cloud Computing, USIL. Los datos de servicios, tráfico y actividad son de demostración.</p>
+    </main>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='panel.js') }}" defer></script>
+{% endblock %}

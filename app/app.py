@@ -4,7 +4,7 @@ Aplicación web con inicio de sesión (Flask + PostgreSQL).
 - Valida usuario y contraseña contra la tabla `usuarios` (hash bcrypt).
 - Consultas parametrizadas (sin concatenar strings -> evita SQL injection).
 - Toda la configuración sensible se lee de variables de entorno.
-- La página /bienvenida solo es accesible con sesión iniciada.
+- El panel administrativo (/panel) solo es accesible con sesión iniciada.
 """
 import os
 import time
@@ -74,6 +74,31 @@ def init_db(retries: int = 15, delay: int = 2):
 init_db()
 
 
+# --- Datos de demostración del panel (solo visuales) --------------------------
+SERVICIOS = [
+    {"nombre": "Proxy", "rol": "Nginx, único punto de entrada", "imagen": "nginx:1.27-alpine",
+     "puerto": "80, público", "activo": "3 d 4 h", "cpu": 4, "memoria": 12, "protocolo": "HTTP"},
+    {"nombre": "Aplicación", "rol": "Flask + Gunicorn", "imagen": "cloud-login-app:1.1.0",
+     "puerto": "8000, interno", "activo": "3 d 4 h", "cpu": 23, "memoria": 64, "protocolo": "SQL"},
+    {"nombre": "Base de datos", "rol": "PostgreSQL con volumen db_data", "imagen": "postgres:17.2-alpine",
+     "puerto": "5432, interno", "activo": "3 d 4 h", "cpu": 11, "memoria": 41},
+]
+
+PETICIONES = [
+    {"hora": f"{h:02d}:00", "valor": v}
+    for h, v in enumerate([182, 141, 118, 96, 88, 104, 190, 412, 786, 1104, 1236, 1298,
+                           1180, 1265, 1342, 1310, 1218, 1096, 948, 802, 690, 566, 402, 268])
+]
+
+EVENTOS = [
+    {"hora": "10:42", "titulo": "Inicio de sesión correcto", "detalle": "admin desde la red interna", "tipo": "ok"},
+    {"hora": "10:15", "titulo": "Copia de seguridad completada", "detalle": "Volumen db_data, 12,4 MB", "tipo": "ok"},
+    {"hora": "09:58", "titulo": "Memoria alta en la aplicación", "detalle": "Llegó al 78 % durante 4 minutos", "tipo": "aviso"},
+    {"hora": "09:30", "titulo": "Despliegue de cloud-login-app:1.1.0", "detalle": "Imagen descargada de Docker Hub", "tipo": "ok"},
+    {"hora": "08:02", "titulo": "Base de datos lista", "detalle": "El healthcheck respondió en 3 s", "tipo": "ok"},
+]
+
+
 # --- Utilidades ---------------------------------------------------------------
 def login_required(view):
     @wraps(view)
@@ -99,7 +124,7 @@ def no_cache(resp):
 def login():
     if request.method == "GET":
         if "usuario_id" in session:
-            return redirect(url_for("bienvenida"))
+            return redirect(url_for("panel"))
         return render_template("login.html")
 
     usuario = request.form.get("usuario", "").strip()
@@ -117,7 +142,7 @@ def login():
         session["usuario_id"] = fila[0]
         session["nombre"] = fila[2]
         log.info("Login correcto: %s", usuario)
-        return redirect(url_for("bienvenida"))
+        return redirect(url_for("panel"))
 
     log.info("Login fallido: %s", usuario)
     # Mensaje genérico: no revela si el usuario existe
@@ -125,10 +150,30 @@ def login():
     return render_template("login.html", usuario=usuario), 401
 
 
-@app.route("/bienvenida")
+@app.route("/panel")
 @login_required
+def panel():
+    with get_conn() as conn:
+        filas = conn.execute(
+            "SELECT usuario, nombre, creado_en FROM usuarios ORDER BY id"
+        ).fetchall()
+    usuarios = [{"usuario": u, "nombre": n, "creado_en": c} for u, n, c in filas]
+    return render_template(
+        "panel.html",
+        nombre=session["nombre"],
+        usuarios=usuarios,
+        servicios=SERVICIOS,
+        peticiones=PETICIONES,
+        total_peticiones=sum(p["valor"] for p in PETICIONES),
+        pico=max(PETICIONES, key=lambda p: p["valor"]),
+        eventos=EVENTOS,
+    )
+
+
+@app.route("/bienvenida")
 def bienvenida():
-    return render_template("bienvenida.html", nombre=session["nombre"])
+    # Ruta anterior: se mantiene para no romper enlaces guardados
+    return redirect(url_for("panel"))
 
 
 @app.route("/logout", methods=["POST"])
